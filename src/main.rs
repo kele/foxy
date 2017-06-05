@@ -11,6 +11,18 @@ fn main() {
     }
 }
 
+mod http;
+
 fn handle_connection(tcp: net::TcpStream) {
-    println!("Opened connection: {:?}", tcp)
+    let mut h = http::HttpStream::new(tcp);
+
+    while !h.is_closed() {
+        let request = match h.get() {
+            Ok(r) => r,
+            Err(e) => {
+                println!("Error while getting http request: {}", e);
+                return;
+            }
+        };
+    }
 }
