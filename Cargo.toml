@@ -1,0 +1,6 @@
+[package]
+name = "foxy"
+version = "0.1.0"
+authors = ["kele <damian.bogel@gmail.com>"]
+
+[dependencies]
