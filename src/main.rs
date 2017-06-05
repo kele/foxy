@@ -24,5 +24,6 @@ fn handle_connection(tcp: net::TcpStream) {
                 return;
             }
         };
+        h.send(&http::HttpPacket{});
     }
 }
