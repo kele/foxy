@@ -14,16 +14,16 @@ fn main() {
 mod http;
 
 fn handle_connection(tcp: net::TcpStream) {
-    let mut h = http::HttpStream::new(tcp);
+    let mut h = http::HttpStream::new(&tcp);
 
     while !h.is_closed() {
-        let request = match h.get() {
+        let request = match h.get_request() {
             Ok(r) => r,
             Err(e) => {
                 println!("Error while getting http request: {}", e);
                 return;
             }
         };
-        h.send(&http::HttpPacket{});
+        h.send(&http::HttpResponse { data: request.data.clone() });
     }
 }
