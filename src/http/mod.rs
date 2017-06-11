@@ -18,20 +18,20 @@ impl<'a> HttpStream<'a> {
     }
 
     pub fn get_request(&mut self) -> io::Result<HttpRequest> {
-        // TODO: error handling
-        let mut lastChar = '\0';
-        let mut packet = string::String::new();
+        let mut header = string::String::new();
 
         loop {
-            let x = self.tcp_bytes.next().unwrap().unwrap() as char;
-            packet.push(x);
-            if lastChar == '\n' && x == '\n' {
+            let x = match self.tcp_bytes.next() {
+                None => panic!("Unexpected EOF"),
+                Some(r) => r? as char,
+            };
+            header.push(x);
+            if header.ends_with("\r\n\r\n") {
                 break;
             }
-            lastChar = x;
         }
 
-        Ok(HttpRequest { data: packet })
+        Ok(HttpRequest { data: header })
     }
 
     pub fn send(&mut self, resp: &HttpResponse) -> io::Result<()> {
