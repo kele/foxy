@@ -37,7 +37,6 @@ impl RequestHeader {
         }
         let (method, uri, protocol) = (parts[0], parts[1], parts[2]);
 
-        println!("{} {} {}", method, uri, protocol);
         let method = match method {
             "GET" => RequestMethod::Get,
             _ => {
