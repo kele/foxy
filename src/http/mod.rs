@@ -1,43 +1,52 @@
-use std::io::Read;
-use std::io::Write;
-use std::io;
+use std::io::{Bytes, BufReader, BufWriter, Error, ErrorKind, Read, Result, Write};
 use std::net;
-use std::string;
+use std::option::Option;
+use std::string::String;
+use write_to::WriteTo;
+
+mod header;
+pub use self::header::{ResponseHeader, RequestHeader};
 
 pub struct HttpStream<'a> {
     tcp: &'a net::TcpStream,
-    tcp_bytes: io::Bytes<io::BufReader<&'a net::TcpStream>>,
+    tcp_bytes: Bytes<BufReader<&'a net::TcpStream>>,
+    tcp_writer: BufWriter<&'a net::TcpStream>,
 }
 
+
 impl<'a> HttpStream<'a> {
-    pub fn new(tcp: &'a net::TcpStream) -> HttpStream<'a> {
+    pub fn new(tcp: &'a net::TcpStream) -> Self {
         HttpStream {
             tcp: tcp,
-            tcp_bytes: io::BufReader::new(tcp).bytes(),
+            tcp_bytes: BufReader::new(tcp).bytes(),
+            tcp_writer: BufWriter::new(tcp),
         }
     }
 
-    pub fn get_request(&mut self) -> io::Result<HttpRequest> {
-        let mut header = string::String::new();
-
-        loop {
+    pub fn get_request(&mut self) -> Result<Option<Request>> {
+        let mut input = String::new();
+        while !input.ends_with("\r\n\r\n") {
             let x = match self.tcp_bytes.next() {
-                None => panic!("Unexpected EOF"),
+                None => return Err(Error::new(ErrorKind::UnexpectedEof, "")),
                 Some(r) => r? as char,
             };
-            header.push(x);
-            if header.ends_with("\r\n\r\n") {
-                break;
-            }
+            input.push(x);
         }
 
-        Ok(HttpRequest { data: header })
+        let header = RequestHeader::parse(input.lines())?;
+        let body = Vec::new(); // TODO: read the body
+
+        Ok(Some(Request {
+                    header: header,
+                    body: body,
+                }))
     }
 
-    pub fn send(&mut self, resp: &HttpResponse) -> io::Result<()> {
-        // TODO: error handling
-        self.tcp.write(resp.data.to_string().as_bytes());
-        Ok(())
+    pub fn send<WT>(&mut self, packet: &WT) -> Result<()>
+        where WT: WriteTo<BufWriter<&'a net::TcpStream>>
+    {
+        packet.write_to(&mut self.tcp_writer)?;
+        self.tcp_writer.flush()
     }
 
     pub fn is_closed(&self) -> bool {
@@ -46,10 +55,27 @@ impl<'a> HttpStream<'a> {
     }
 }
 
-pub struct HttpRequest {
-    pub data: string::String,
+
+pub struct Request {
+    pub header: RequestHeader,
+    pub body: Vec<u8>,
 }
 
-pub struct HttpResponse {
-    pub data: string::String,
+impl<W: Write> WriteTo<W> for Request {
+    fn write_to(&self, w: &mut W) -> Result<()> {
+        self.header.write_to(w.by_ref())?;
+        w.write_all(self.body.as_slice())
+    }
+}
+
+pub struct Response {
+    pub body: Vec<u8>,
+    pub header: ResponseHeader,
+}
+
+impl<W: Write> WriteTo<W> for Response {
+    fn write_to(&self, w: &mut W) -> Result<()> {
+        self.header.write_to(w.by_ref())?;
+        w.write_all(self.body.as_slice())
+    }
 }
