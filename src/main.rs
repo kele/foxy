@@ -12,23 +12,27 @@ const PROXY_PORT: u16 = 4000;
 fn main() {
     let listener = net::TcpListener::bind(("127.0.0.1", PROXY_PORT)).unwrap();
 
-    match listener.accept() {
-        Ok((sock, _)) => handle_connection(sock),
-        Err(e) => panic!("Error while accepting connection: {}", e),
+    loop {
+        match listener.accept() {
+            Ok((sock, _)) => {
+                match handle_connection(sock) {
+                    Ok(()) => (),
+                    Err(e) => println!("Connection ended with {:?}", e),
+                }
+            }
+            Err(e) => println!("Error while accepting connection: {:?}", e),
+        }
     }
 }
 
 
-fn handle_connection(tcp: net::TcpStream) {
+fn handle_connection(tcp: net::TcpStream) -> std::io::Result<()> {
     let mut h = http::HttpStream::new(&tcp);
 
     while !h.is_closed() {
-        let request = match h.get_request().unwrap() {
+        let request = match h.get_request()? {
             Some(r) => r,
-            None => {
-                println!("UnexpectedEOF");
-                return;
-            }
+            None => return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "")),
         };
 
         let mut response_body = Vec::new();
@@ -47,4 +51,6 @@ fn handle_connection(tcp: net::TcpStream) {
                    body: response_body,
                });
     }
+
+    Ok(())
 }
