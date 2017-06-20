@@ -4,12 +4,14 @@ use std::option::Option;
 use std::string::String;
 use write_to::WriteTo;
 
+use std::boxed::Box;
+
 mod header;
 pub use self::header::{ResponseHeader, RequestHeader};
 
 pub struct HttpStream<'a> {
     tcp: &'a net::TcpStream,
-    tcp_bytes: Bytes<BufReader<&'a net::TcpStream>>,
+    tcp_reader: BufReader<&'a net::TcpStream>,
     tcp_writer: BufWriter<&'a net::TcpStream>,
 }
 
@@ -18,15 +20,16 @@ impl<'a> HttpStream<'a> {
     pub fn new(tcp: &'a net::TcpStream) -> Self {
         HttpStream {
             tcp: tcp,
-            tcp_bytes: BufReader::new(tcp).bytes(),
+            tcp_reader: BufReader::new(tcp),
             tcp_writer: BufWriter::new(tcp),
         }
     }
 
     pub fn get_request(&mut self) -> Result<Option<Request>> {
         let mut input = String::new();
+        let mut bytes = self.tcp_reader.by_ref().bytes();
         while !input.ends_with("\r\n\r\n") {
-            let x = match self.tcp_bytes.next() {
+            let x = match bytes.next() {
                 None => return Err(Error::new(ErrorKind::UnexpectedEof, "")),
                 Some(r) => r? as char,
             };
