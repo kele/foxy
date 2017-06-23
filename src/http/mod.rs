@@ -4,8 +4,6 @@ use std::option::Option;
 use std::string::String;
 use write_to::WriteTo;
 
-use std::boxed::Box;
-
 mod header;
 pub use self::header::{ResponseHeader, RequestHeader};
 
