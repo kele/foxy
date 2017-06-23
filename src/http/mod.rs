@@ -54,6 +54,11 @@ impl<'a> HttpStream<'a> {
         // TODO
         false
     }
+
+    pub fn release(mut self) -> Result<Vec<u8>> {
+        use std::io::BufRead;
+        Ok(self.tcp_reader.fill_buf()?.to_vec())
+    }
 }
 
 
