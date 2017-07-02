@@ -5,10 +5,9 @@ use std::str::Lines;
 use std::vec::Vec;
 use write_to::WriteTo;
 
-#[derive (Clone, Copy)]
+#[derive (Clone, Debug)]
 pub enum RequestMethod {
     Get,
-    // TODO: add more methods here
 }
 
 impl fmt::Display for RequestMethod {
@@ -19,6 +18,7 @@ impl fmt::Display for RequestMethod {
     }
 }
 
+#[derive (Clone, Debug)]
 pub struct RequestHeader {
     pub method: RequestMethod,
     pub uri: String,
@@ -55,8 +55,8 @@ impl RequestHeader {
     }
 }
 
-impl<W: Write> WriteTo<W> for RequestHeader {
-    fn write_to(&self, w: &mut W) -> Result<()> {
+impl WriteTo for RequestHeader {
+    fn write_to<W: Write>(&self, w: &mut W) -> Result<()> {
         write!(w,
                "{method} {uri} {protocol}\r\n",
                method = self.method,
@@ -71,7 +71,7 @@ impl<W: Write> WriteTo<W> for RequestHeader {
 }
 
 
-#[derive (Clone)]
+#[derive (Clone, Debug)]
 pub struct ResponseHeader {
     pub fields: HashMap<String, String>,
 
@@ -96,6 +96,7 @@ impl ResponseHeader {
 
     pub fn parse(mut lines: Lines) -> Result<Self> {
         let response_line = lines.next().unwrap_or_default();
+        // TODO: fix for HTTP/1.1 304 Moved Permamently
         let parts: Vec<_> = response_line.trim().split_whitespace().collect();
         if parts.len() != 3 {
             let err_msg = format!("Response header should consist of three parts. Got: {:?}",
